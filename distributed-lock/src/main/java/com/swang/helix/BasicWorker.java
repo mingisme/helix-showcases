@@ -23,7 +23,7 @@ public class BasicWorker extends Thread{
     public void run() {
 
         LockScope lockScope = new HelixLockScope(HelixLockScope.LockScopeProperty.RESOURCE, Arrays.asList("test1","lock1"));
-        DistributedLock lock = new ZKDistributedNonblockingLock(lockScope,zkAddress,5000L,"lock by " + this.getName(), this.getName());
+        DistributedLock lock = new ZKDistributedNonblockingLock(lockScope,zkAddress,5000L,"locked by " + this.getName(), this.getName());
 
         try {
             if (lock.tryLock()) {
