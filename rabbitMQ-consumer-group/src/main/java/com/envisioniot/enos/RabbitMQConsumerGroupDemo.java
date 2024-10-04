@@ -14,13 +14,12 @@ import java.io.File;
 import java.util.Map;
 import java.util.TreeSet;
 
-public class DistributedLockManagerDemo {
+public class RabbitMQConsumerGroupDemo {
     public static void main(String[] args) throws Exception {
-
         int zkPort = 2199;
         ZkServer zkServer = startLocalZookeeper(zkPort);
 
-        String clusterName = "distributed-lock-manager";
+        String clusterName = "rabbitmq-consumer-group";
         String zkAddress = "localhost:" + zkPort;
 
         ZKHelixAdmin admin = new ZKHelixAdmin.Builder().setZkAddress(zkAddress).build();
@@ -30,54 +29,65 @@ public class DistributedLockManagerDemo {
         String stateModelDef = OnlineOfflineSMD.name;
         admin.addStateModelDef(clusterName, stateModelDef, smd, true);
 
-        String lockGroupName = "lock-group";
-        admin.addResource(clusterName, lockGroupName, 12, stateModelDef, IdealState.RebalanceMode.FULL_AUTO.name());
-        admin.rebalance(clusterName, lockGroupName, 1);
+        String resource = MqConsumer.QUEUE_NAME;
+        int partitionNumber = 6;
+        admin.addResource(clusterName, resource, partitionNumber, stateModelDef, IdealState.RebalanceMode.FULL_AUTO.name());
+        admin.rebalance(clusterName, resource, 2);
 
-        Instance[] instances = new Instance[3];
+        String mqServer = "localhost";
+        ConsumerInstance[] instances = new ConsumerInstance[3];
         for (int i = 0; i < instances.length; i++) {
-            instances[i] = new Instance("localhost_1200" + i, zkAddress, clusterName, stateModelDef);
+            instances[i] = new ConsumerInstance("localhost_1200" + i, zkAddress, clusterName, stateModelDef, mqServer);
         }
-        for (Instance instance : instances) {
+        for (ConsumerInstance instance : instances) {
             instance.start();
         }
-        Thread.sleep(1000);
+        Thread.sleep(2000);
         HelixManager controller = HelixControllerMain.startHelixController(zkAddress, clusterName, "controller",
                 HelixControllerMain.STANDALONE);
         System.out.println("Started controller");
+        Thread.sleep(1000);
+
+        ProducerInstance producer = new ProducerInstance(mqServer, partitionNumber);
+        producer.start();
 
         Thread.sleep(1000);
-        printStatus(admin, clusterName, lockGroupName);
+        printStatus(admin, clusterName, resource);
 
         instances[0].interrupt();
-
         Thread.sleep(1000);
-        printStatus(admin, clusterName, lockGroupName);
+        printStatus(admin, clusterName, resource);
 
-        instances[0] = new Instance("localhost_12000", zkAddress, clusterName, stateModelDef);
-        instances[0].start();
+        instances[1].interrupt();
         Thread.sleep(1000);
-        printStatus(admin, clusterName, lockGroupName);
+        printStatus(admin, clusterName, resource);
+
+        producer.interrupt();
+        Thread.sleep(2000);
+        System.out.println("produce: " + MessageCounter.produceCount + ", consume: " + MessageCounter.consumeCount);
 
         controller.disconnect();
-        for(Instance instance : instances){
+        for (ConsumerInstance instance : instances) {
             instance.interrupt();
         }
         zkServer.shutdown();
+
+        System.exit(0);
+
     }
 
-    private static void printStatus(ZKHelixAdmin admin, String clusterName, String lockGroupName) {
-        ExternalView externalView = admin.getResourceExternalView(clusterName, lockGroupName);
-        // System.out.println(externalView);
+    private static void printStatus(ZKHelixAdmin admin, String clusterName, String resource) {
+        System.out.println("\n---external view of " + resource + "---");
+        ExternalView externalView = admin.getResourceExternalView(clusterName, resource);
         TreeSet<String> treeSet = new TreeSet<String>(externalView.getPartitionSet());
-        System.out.println("lockName" + "\t" + "acquired By");
-        System.out.println("======================================");
-        for (String lockName : treeSet) {
-            Map<String, String> stateMap = externalView.getStateMap(lockName);
-            String acquiredBy = stateMap.entrySet().stream().filter(e -> "ONLINE".equals(e.getValue())).map(Map.Entry::getKey).findFirst().orElse("NONE");
-            System.out.println(lockName + "\t" +  acquiredBy);
+        for (String partition : treeSet) {
+            Map<String, String> stateMap = externalView.getStateMap(partition);
+            System.out.println("partition: " + partition);
+            stateMap.forEach((key, value) -> System.out.println("\t" + key + ":\t" + value));
         }
+        System.out.println();
     }
+
 
     private static ZkServer startLocalZookeeper(int port) throws Exception {
         String baseDir = "/tmp/demo/";

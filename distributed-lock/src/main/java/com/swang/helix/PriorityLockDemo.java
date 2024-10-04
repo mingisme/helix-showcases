@@ -23,7 +23,7 @@ public class PriorityLockDemo {
     }
 
     private static ZkServer startLocalZookeeper(int port) throws Exception {
-        String baseDir = "/tmp/basicLockDemo/";
+        String baseDir = "/tmp/demo/";
         final String dataDir = baseDir + "zk/dataDir";
         final String logDir = baseDir + "/tmp/logDir";
         FileUtils.deleteDirectory(new File(dataDir));
