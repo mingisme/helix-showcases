@@ -8,6 +8,7 @@ import org.apache.helix.participant.statemachine.StateModel;
 import org.apache.helix.participant.statemachine.StateModelInfo;
 import org.apache.helix.participant.statemachine.Transition;
 
+
 @StateModelInfo(initialState = "OFFLINE", states = {
         "OFFLINE", "MASTER", "SLAVE"
 })
@@ -17,6 +18,8 @@ public class FileStoreStateModel extends StateModel {
     private final String partitionName;
     private final InstanceConfig instanceConfig;
     private final String instanceName;
+
+    private DirectoryWatcher directoryWatcher;
 
     public FileStoreStateModel(HelixManager helixManager, String resourceName, String partitionName) {
         this.helixManager = helixManager;
@@ -35,8 +38,10 @@ public class FileStoreStateModel extends StateModel {
     }
 
     @Transition(from = "SLAVE", to = "MASTER")
-    public void onBecomeMasterFromSlave(Message message, NotificationContext context) {
+    public void onBecomeMasterFromSlave(Message message, NotificationContext context) throws Exception {
         System.out.println(instanceName + " transitioning from " + message.getFromState() + " to " + message.getToState() + " for " + partitionName);
+        directoryWatcher = new DirectoryWatcher(message.getResourceName(), helixManager);
+        directoryWatcher.start();
 
         System.out.println(instanceName + " transitioned from " + message.getFromState() + " to " + message.getToState() + " for " + partitionName);
     }
