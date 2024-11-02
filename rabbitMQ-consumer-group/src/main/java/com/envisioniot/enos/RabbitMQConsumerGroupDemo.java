@@ -46,20 +46,20 @@ public class RabbitMQConsumerGroupDemo {
         HelixManager controller = HelixControllerMain.startHelixController(zkAddress, clusterName, "controller",
                 HelixControllerMain.STANDALONE);
         System.out.println("Started controller");
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         ProducerInstance producer = new ProducerInstance(mqServer, partitionNumber);
         producer.start();
 
-        Thread.sleep(1000);
+        Thread.sleep(5000);
         printStatus(admin, clusterName, resource);
 
         instances[0].interrupt();
-        Thread.sleep(1000);
+        Thread.sleep(5000);
         printStatus(admin, clusterName, resource);
 
         instances[1].interrupt();
-        Thread.sleep(1000);
+        Thread.sleep(5000);
         printStatus(admin, clusterName, resource);
 
         producer.interrupt();

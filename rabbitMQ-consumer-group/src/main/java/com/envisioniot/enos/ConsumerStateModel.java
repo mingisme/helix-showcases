@@ -48,7 +48,7 @@ public class ConsumerStateModel extends StateModel {
 
     @Override
     public void reset() {
-        System.out.println("Default reset() invoked");
+        System.out.println("Default reset() invoked on " + instanceName);
         if (consumer != null) {
             System.out.println("Stopping " + instanceName + " for " + partitionName + "...");
 
